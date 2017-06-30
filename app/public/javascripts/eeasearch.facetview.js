@@ -2,94 +2,51 @@ var blackList = {
   'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' : []};
 
 var whiteList = false;
-
-var predefined_filters = [];
-var predefined_filters_expired = [];
-
-function add_titles(){
-    var records = $('.facet-view-simple').facetview.options.data.records;
-    var display_type = $('.facet-view-simple').facetview.options.display_type;
-    if (display_type !== 'tabular'){
-        return;
-    }
-    for (var i = 0; i < records.length; i++){
-        var id = records[i]['http://www.w3.org/1999/02/22-rdf-syntax-ns#about'];
-        var element = $("a[href='"+id+"']");
-        var title = element.text();
-        element.attr("title", title);
-    }
-}
-
-function add_ribbon(id, message, ribbon_class){
-   var display_type = $('.facet-view-simple').facetview.options.display_type;
-    var ribbon = $('<div class="ribbon-wrapper"><div class="ribbon">' + message + '</div></div>');
-    if (display_type === 'tabular'){
-        $("a[href='"+id+"']").closest("td").addClass(ribbon_class);
-        $("a[href='"+id+"']").closest("td").addClass("ribbon-parent");
-        ribbon
-            .insertBefore("a[href='"+id+"']");
-    }
-    if (display_type === 'card'){
-        $("a[href='"+id+"']").addClass(ribbon_class);
-        $("a[href='"+id+"']").addClass("ribbon-parent");
-        ribbon
-            .appendTo("a[href='"+id+"']");
-    }
-    if (display_type === 'list'){
-        $("a[href='"+id+"']").closest(".tileItem").addClass(ribbon_class);
-        $("a[href='"+id+"']").closest(".tileItem").addClass("ribbon-parent");
-        ribbon
-            .insertBefore("a[href='"+id+"']");
-    }
-}
-
-function mark_recent(){
-    var records = $('.facet-view-simple').facetview.options.data.records;
-    for (var i = 0; i < records.length; i++){
-        if ((records[i]['http://purl.org/dc/terms/issued'] !== undefined) && (records[i]['http://purl.org/dc/terms/issued'] !== '')){
-            var issued_date_stamp = Date.parse(records[i]['http://purl.org/dc/terms/issued']);
-            var now_stamp = Date.now();
-            var days = (now_stamp - issued_date_stamp)/1000/60/60/24;
-            if (days < 30){
-                var id = records[i]['http://www.w3.org/1999/02/22-rdf-syntax-ns#about'];
-                add_ribbon(id, "NEW", "recent");
-            }
-        }
-    }
-}
-
-function mark_expired(){
-    var records = $('.facet-view-simple').facetview.options.data.records;
-    for (var i = 0; i < records.length; i++){
-        if ((records[i]['http://purl.org/dc/terms/expires'] !== undefined) && (records[i]['http://purl.org/dc/terms/expires'] !== '')){
-            var expire_date_stamp = Date.parse(records[i]['http://purl.org/dc/terms/expires']);
-            var now_stamp = Date.now();
-            if (now_stamp >= expire_date_stamp){
-                var id = records[i]['http://www.w3.org/1999/02/22-rdf-syntax-ns#about'];
-                add_ribbon(id, "ARCHIVED", "expired");
-            }
-        }
-    }
-}
-
-function add_control_for_expired(){
-  $(".facetview_include_expired").remove();
-  var checkbox = $('<div class="facetview_include_expired filter-by"><span>Include archived content </span><input type="checkbox" id="include_expired" value=""></div>');
-  checkbox.insertAfter(".facetview_display_type");
-  var original_predefined_filters = $('.facet-view-simple').facetview.options.predefined_filters;
-  if (original_predefined_filters.length === 2){
-    $("#include_expired").prop("checked", true);
-  }
-  $("#include_expired").change(function() {
-    var tmp_predefined_filters = [];
-    tmp_predefined_filters = tmp_predefined_filters.concat(predefined_filters);
-    if(! this.checked){
-        tmp_predefined_filters = tmp_predefined_filters.concat(predefined_filters_expired);
-    }
-    $('.facet-view-simple').facetview.options.predefined_filters = tmp_predefined_filters;
-    $('.facet-view-simple').facetview.dosearch();
-  });
-}
+var appHierarchy = {
+  'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' :
+    [{
+      'Highlight' : [],
+      'Press Release' : [],
+      'Event' : [],
+      'Promotion' : [],
+      'Article' : [],
+      'Eco-Tip' : [],
+      'Image' : [],
+      'Video' : [],
+      'Report' : [],
+      'Data' : [],
+      'Data Visualization' : [],
+      'Indicator Specification' : [],
+      'Indicator factsheet' : [],
+      'Indicator assessment' : [],
+      'Infographic' : [],
+      'Briefing' : [],
+      'Page': [],
+      'Link' : [],
+      'Data File' : [],
+      'Assessment part' : [],
+      'EEA Job Vacancy' : [],
+      'Epub File' : [],
+      'External Data Reference' : [],
+      'Eyewitness story' : [],
+      'Figure' : [],
+      'File' : [],
+      'Folder' : [],
+      'GIS Map Application' : [],
+      'Methodology Reference' : [],
+      'Organization' : [],
+      'Policy Question' : [],
+      'Rationale Reference' : [],
+      'SOER Key fact' : [],
+      'SOER Message' : [],
+      'SPARQL' : [],
+      'Speech' : [],
+      'Text' : [],
+      'Work Item' : []
+      }],
+        'http://www.eea.europa.eu/portal_types#topic' : [],
+        'http://purl.org/dc/terms/spatial' : []
+      };
 
 function hide_unused_options(blackList, whiteList) {
   var filters = $('a.facetview_filterchoice');
@@ -155,47 +112,13 @@ function add_iframe() {
 
 jQuery(document).ready(function($) {
   var url = $(location).attr('href');
-  var hide_expired = true;
-  if (url.split("?source=").length === 2){
-    var source_str = url.split("?source=")[1];
-    source_str = decodeURIComponent(source_str);
-    var source_query = JSON.parse(source_str);
-    if ((source_str.indexOf('{"missing":{"field":"http://purl.org/dc/terms/expires"}}')) === -1){
-        hide_expired = false;
-    }
-  }
-
+  var position = url.indexOf('/search/');
+  var vfrom = url.indexOf('from');
+  var from_val = vfrom ? window.parseInt(url.substring(vfrom + 10, vfrom + 12)) : 0;
+  var language = url[position - 3] === '/' ?
+      url.substring(position - 2, position) :
+      'en';
   var today = getToday();
-
-  predefined_filters = [
-      {'term': {'http://www.eea.europa.eu/ontologies.rdf#hasWorkflowState':
-                  'published'}},
-      {'constant_score': {
-        'filter': {
-          'or': [
-            {'missing': {'field': 'http://purl.org/dc/terms/issued'}},
-            {'range': {'http://purl.org/dc/terms/issued': {'lte': today}}}
-          ]
-        }}
-      }];
-
-  predefined_filters_expired = [
-      {'constant_score': {
-        'filter': {
-          'or': [
-            {'missing': {'field': 'http://purl.org/dc/terms/expires'}},
-            {'range': {'http://purl.org/dc/terms/expires': {'gte': today}}}
-          ]
-        }}
-      }
-    ];
-
-
-  var tmp_predefined_filters = [];
-  tmp_predefined_filters = tmp_predefined_filters.concat(predefined_filters);
-  if (hide_expired){
-    tmp_predefined_filters = tmp_predefined_filters.concat(predefined_filters_expired);
-  }
   eea_facetview('.facet-view-simple', 
   {
     search_url: './api',
@@ -213,14 +136,37 @@ jQuery(document).ready(function($) {
         'display_desc': 'Newest'
       }
     ],
-    sort: [{'http://purl.org/dc/terms/issued': {'order': 'desc'}}],
-//    selected_sort: "relevance",
+    sort: [{'http://purl.org/dc/terms/issued': {'order': 'desc'}}
+    ],
     default_operator: 'AND',
     default_freetext_fuzzify: '',
     querystr_filtered_chars: ':?',
     no_results_message: 'Your search did not return any results',
     add_undefined: true,
-    predefined_filters: tmp_predefined_filters,
+    predefined_filters: [
+      {'term': {'language': language}},
+      {'term': {'http://www.eea.europa.eu/ontologies.rdf#hasWorkflowState':
+                  'published'}},
+      //{'range': {'http://purl.org/dc/terms/issued': {'lte': today}}},
+      {'constant_score': {
+        'filter': {
+          'or': [
+            {'missing': {'field': 'http://purl.org/dc/terms/issued'}},
+            {'range': {'http://purl.org/dc/terms/issued': {'lte': today}}}
+          ]
+        }}
+      },
+      // {'range': {'http://purl.org/dc/terms/expires': {'gte': today}}},
+      {'constant_score': {
+        'filter': {
+          'or': [
+            {'missing': {'field': 'http://purl.org/dc/terms/expires'}},
+            {'range': {'http://purl.org/dc/terms/expires': {'gte': today}}}
+          ]
+        }}
+      }
+    ],
+    hierarchy: appHierarchy,
     pager_on_top: true,
     permanent_filters: true,
     post_init_callback: function() {
@@ -228,28 +174,18 @@ jQuery(document).ready(function($) {
       replaceNumbers();
     },
     post_search_callback: function() {
-      add_control_for_expired();
       hide_unused_options(blackList, whiteList);
       add_EEA_settings();
       viewReady();
       replaceNumbers();
       add_iframe();
-      add_titles();
-      mark_expired();
-      mark_recent();
     },
     linkify: false,
     paging: {
-      from: 0,
+      from: from_val,
       size: 20
     },
-    display_images: false,
-    display_type: 'card',
-    highlight_enabled: eea_mapping.highlights.enabled,
-    highlight_whitelist: eea_mapping.highlights.whitelist,
-    highlight_blacklist: eea_mapping.highlights.blacklist,
-    enable_exact: true,
-    relevance: settings_relevance
+    display_type: 'card'
   });
-});
 
+});
